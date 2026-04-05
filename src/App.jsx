@@ -11,6 +11,9 @@ function App() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  
+  // Custom Filters:
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'pl' | 'foreign'
 
   const handlePinSubmit = (e) => {
     e.preventDefault()
@@ -21,9 +24,6 @@ function App() {
       setPinInput('')
     }
   }
-
-  // Load data immediately, but we can also load it conditionally after auth 
-  // Let's load it immediately in the background so it's ready when the user logs in.
 
   const loadData = async () => {
     try {
@@ -41,7 +41,6 @@ function App() {
 
   useEffect(() => {
     loadData()
-    // Auto-refresh every 5 minutes
     const interval = setInterval(() => {
       loadData()
     }, 5 * 60 * 1000)
@@ -49,10 +48,17 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Calculate totals
-  const totalValue = data.reduce((sum, item) => sum + (item.marketValuePLN || 0), 0)
-  const totalCost = data.reduce((sum, item) => sum + (item.costBasePLN || 0), 0)
-  const totalProfit = data.reduce((sum, item) => sum + (item.unrealizedGainPLN || 0), 0)
+  // Apply filtering
+  const filteredData = data.filter(item => {
+    if (activeFilter === 'all') return true;
+    if (activeFilter === 'pl') return item.category === 'AKCJE POLSKIE';
+    if (activeFilter === 'foreign') return item.category !== 'AKCJE POLSKIE' && item.category !== 'ETF METALE';
+    return true;
+  });
+
+  const totalValue = filteredData.reduce((sum, item) => sum + (item.marketValuePLN || 0), 0)
+  const totalCost = filteredData.reduce((sum, item) => sum + (item.costBasePLN || 0), 0)
+  const totalProfit = filteredData.reduce((sum, item) => sum + (item.unrealizedGainPLN || 0), 0)
   const profitPct = totalCost > 0 ? (totalValue - totalCost) / totalCost : 0
 
   const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(val || 0)
@@ -88,7 +94,7 @@ function App() {
       <header className="app-header">
         <div className="header-title">
           <Briefcase className="logo-icon" />
-          <h1>Portfolio Dashboard</h1>
+          <h1>Portfel - papiery notowane</h1>
         </div>
         <button className="btn-refresh" onClick={loadData} disabled={loading}>
           <RefreshCw className={loading ? "spin" : ""} size={16} />
@@ -111,6 +117,7 @@ function App() {
           </div>
         ) : (
           <>
+            {/* KPI Section */}
             <div className="kpi-grid fade-in">
               <div className="kpi-card">
                 <div className="kpi-label">Wartość Portfela</div>
@@ -132,9 +139,38 @@ function App() {
               </div>
             </div>
 
-            <PortfolioChart data={data} />
+            {/* Filter Controls (replaces standard Pivot controls) */}
+            <div className="pivot-controls" style={{ marginBottom: '1.5rem', justifyContent: 'center' }}>
+              <button 
+                className={`btn-pivot ${activeFilter === 'all' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('all')}
+              >
+                Wszystkie
+              </button>
+              <button 
+                className={`btn-pivot ${activeFilter === 'pl' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('pl')}
+              >
+                Akcje Polskie
+              </button>
+              <button 
+                className={`btn-pivot ${activeFilter === 'foreign' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('foreign')}
+              >
+                Zagranica (bez metali)
+              </button>
+            </div>
 
-            <DataTable data={data} />
+            {/* Desktop Dashboard Layout: Charts -> Table. Mobile: Table -> Charts */}
+            <div className="content-layout">
+              <div className="charts-section">
+                <PortfolioChart data={data} activeFilter={activeFilter} />
+              </div>
+              
+              <div className="table-section">
+                <DataTable data={filteredData} />
+              </div>
+            </div>
           </>
         )}
       </main>

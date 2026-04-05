@@ -26,31 +26,8 @@ export function DataTable({ data }) {
       cell: info => <span className="ticker-badge">{info.getValue()}</span>,
     },
     {
-      header: 'Kategoria',
-      accessorKey: 'category',
-    },
-    {
-      header: 'Waluta',
-      accessorKey: 'currency',
-    },
-    {
-      header: 'Ilość',
-      accessorKey: 'quantity',
-      cell: info => new Intl.NumberFormat('pl-PL').format(info.getValue() || 0),
-    },
-    {
-      header: 'Koszt (PLN)',
-      accessorKey: 'costBasePLN',
-      cell: info => fmtMoney(info.getValue()),
-      aggregationFn: 'sum',
-      aggregatedCell: ({ getValue }) => <span className="text-bold">{fmtMoney(getValue())}</span>,
-    },
-    {
-      header: 'Wartość Rynkowa (PLN)',
-      accessorKey: 'marketValuePLN',
-      cell: info => fmtMoney(info.getValue()),
-      aggregationFn: 'sum',
-      aggregatedCell: ({ getValue }) => <span className="text-bold">{fmtMoney(getValue())}</span>,
+      header: 'Nazwa',
+      accessorKey: 'name',
     },
     {
       header: 'Zysk (PLN)',
@@ -140,6 +117,29 @@ export function DataTable({ data }) {
           </span>
         );
       }
+    },
+    {
+      header: 'Koszt (PLN)',
+      accessorKey: 'costBasePLN',
+      cell: info => <span className="text-muted">{fmtMoney(info.getValue())}</span>,
+    },
+    {
+      header: 'Wartość Rynkowa (PLN)',
+      accessorKey: 'marketValuePLN',
+      cell: info => <span className="text-medium">{fmtMoney(info.getValue())}</span>,
+    },
+    {
+      header: 'Ilość',
+      accessorKey: 'quantity',
+      cell: info => new Intl.NumberFormat('pl-PL').format(info.getValue() || 0),
+    },
+    {
+      header: 'Waluta',
+      accessorKey: 'currency',
+    },
+    {
+      header: 'Kategoria',
+      accessorKey: 'category',
     }
   ];
 
@@ -160,22 +160,7 @@ export function DataTable({ data }) {
 
   return (
     <div className="table-container fade-in">
-      <div className="pivot-controls">
-        <span className="pivot-label">🗂️ Pivotowanie tabeli:</span>
-        <button 
-          className={classNames("btn-pivot", grouping.includes('category') ? "active" : "")}
-          onClick={() => setGrouping(g => g.includes('category') ? [] : ['category'])}
-        >
-          Wg. Kategorii
-        </button>
-        <button 
-          className={classNames("btn-pivot", grouping.includes('currency') ? "active" : "")}
-          onClick={() => setGrouping(g => g.includes('currency') ? [] : ['currency'])}
-        >
-          Wg. Waluty
-        </button>
-      </div>
-
+      {/* Pivot / grouping controls have been removed according to user request */}
       <div className="glass-panel">
         <table className="glass-table">
           <thead>

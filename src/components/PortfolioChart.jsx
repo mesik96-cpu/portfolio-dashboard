@@ -1,5 +1,5 @@
 import React from 'react';
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 
 const CATEGORY_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6'];
 const TICKER_COLORS = ['#0ea5e9', '#06b6d4', '#0284c7', '#2563eb', '#4f46e5', '#6366f1', '#7c3aed', '#9333ea', '#c026d3', '#db2777', '#e11d48', '#be123c', '#9f1239'];
@@ -20,41 +20,39 @@ const CustomTooltip = ({ active, payload }) => {
   return null;
 };
 
-// Customized Label to mimic Google Sheets:
-// Draws standard outer label, but for large enough slices it could do inner. 
-// We will stick to a clean, small outer label to prevent clipping, and use margins.
+// Customized Label to mimic Google Sheets
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent, name, value }) => {
   const RADIAN = Math.PI / 180;
-  // Increase radius significantly so labels are pushed outside clearly
-  const radius = outerRadius * 1.25; 
+  // Push outer label far enough to not overlap pie, but not so far it cuts off
+  const radius = outerRadius * 1.35; 
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-  // For inner numeric value
+  // Inner numeric value coordinate
   const innerR = innerRadius + (outerRadius - innerRadius) * 0.5;
   const innerX = cx + innerR * Math.cos(-midAngle * RADIAN);
   const innerY = cy + innerR * Math.sin(-midAngle * RADIAN);
 
-  if (percent < 0.03) return null; // Hide labels for very small slices
+  if (percent < 0.02) return null; // Complete hide for < 2% to keep cleanly 
 
   return (
     <g>
-      {/* Inner numeric value (only if slice is large enough e.g. > 8%) */}
-      {percent > 0.08 && (
-        <text x={innerX} y={innerY} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize="0.7rem" fontWeight="500" opacity={0.9}>
+      {/* Inner numeric rectangle/text for very large slices to match Google Sheets exactly */}
+      {percent > 0.06 && (
+        <text x={innerX} y={innerY} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize="0.75rem" fontWeight="600" opacity={0.95} pointerEvents="none">
           {fmtMoney(value)}
         </text>
       )}
       
-      {/* Outer name and % */}
-      <text x={x} y={y} fill="#c7c8d9" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="0.75rem">
+      {/* Outer label */}
+      <text x={x} y={y} fill="#e2e8f0" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize="0.75rem" fontWeight="500">
         {name} ({(percent * 100).toFixed(1)}%)
       </text>
     </g>
   );
 };
 
-export function PortfolioChart({ data }) {
+export function PortfolioChart({ data, activeFilter }) {
   if (!data || data.length === 0) return null;
 
   const categoryMap = {};
@@ -104,45 +102,55 @@ export function PortfolioChart({ data }) {
 
   const plVsRestData = [
     { name: 'AKCJE POLSKIE', value: plTotal, percentage: ((plTotal / (plTotal+restTotal)) * 100).toFixed(1) },
-    { name: 'RESZTA (BEZ METALI)', value: restTotal, percentage: ((restTotal / (plTotal+restTotal)) * 100).toFixed(1) }
+    { name: 'ZAGRANICA', value: restTotal, percentage: ((restTotal / (plTotal+restTotal)) * 100).toFixed(1) }
   ].filter(d => d.value > 0);
 
   const ChartContainer = ({ title, chartData, colors }) => (
-    <div className="chart-container fade-in" style={{ height: 320, background: 'rgba(20, 20, 30, 0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', padding: '10px 0' }}>
-      <h3 style={{ fontSize: '0.95rem', margin: '0 0 10px', color: '#c7c8d9', textAlign: 'center', fontWeight: '500' }}>{title}</h3>
-      <ResponsiveContainer width="100%" height="90%">
-        <PieChart margin={{ top: 20, right: 60, left: 60, bottom: 20 }}>
+    <div className="chart-container fade-in" style={{ height: 350, background: 'rgba(20, 20, 30, 0.4)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)', padding: '10px 0', flex: 1, minWidth: '300px' }}>
+      <h3 style={{ fontSize: '0.85rem', margin: '0 0 5px', color: '#9ca3af', textAlign: 'center', fontWeight: '500' }}>{title}</h3>
+      <ResponsiveContainer width="100%" height="95%">
+        {/* Increased margins so external labels never clip */}
+        <PieChart margin={{ top: 20, right: 90, left: 90, bottom: 20 }}>
           <Pie
             data={chartData}
             cx="50%"
             cy="50%"
-            innerRadius={45}
-            outerRadius={75}
-            paddingAngle={2}
+            innerRadius="35%"
+            outerRadius="65%"
             dataKey="value"
-            stroke="none"
+            stroke="rgba(255,255,255,0.1)"
+            strokeWidth={1}
+            isAnimationActive={false} /* Disabled intro animation for cleaner snappy load */
             label={renderCustomLabel}
-            labelLine={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+            labelLine={{ stroke: 'rgba(255,255,255,0.4)', strokeWidth: 1 }}
           >
             {chartData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} opacity={0.85} />
+              <Cell key={`cell-${index}`} fill={colors[index % colors.length]} opacity={0.9} />
             ))}
           </Pie>
-          <Tooltip content={<CustomTooltip />} />
-          {/* Recharts Legend configuration for smaller font and clean look */}
-          <Legend wrapperStyle={{ fontSize: '0.7rem', color: '#9ca3af', opacity: 0.8 }} iconSize={8} />
+          {/* Instant tooltip, no animation/sliding issues */}
+          <Tooltip content={<CustomTooltip />} isAnimationActive={false} />
+          {/* Legend Removed */}
         </PieChart>
       </ResponsiveContainer>
     </div>
   );
 
   return (
-    // Force a 2x2 configuration with CSS Grid
-    <div className="charts-wrapper" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '15px', marginBottom: '1.5rem' }}>
-      <ChartContainer title="Główna struktura portfela (Kategorie)" chartData={categoryChartData} colors={CATEGORY_COLORS} />
-      <ChartContainer title="Wszystkie pozycje w portfelu" chartData={allPositionsData} colors={TICKER_COLORS} />
-      <ChartContainer title="Akcje Polskie" chartData={plChartData} colors={TICKER_COLORS} />
-      <ChartContainer title="Akcje Polskie vs Zagranica (bez Metali)" chartData={plVsRestData} colors={['#ec4899', '#6366f1']} />
+    // Filter conditional logic on the charts displayed
+    <div className="charts-wrapper" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '15px', marginBottom: '1.5rem' }}>
+      {(activeFilter === 'all') && (
+        <>
+          <ChartContainer title="Główna struktura portfela (Kategorie)" chartData={categoryChartData} colors={CATEGORY_COLORS} />
+          <ChartContainer title="Struktura wszystkich pozycji" chartData={allPositionsData} colors={TICKER_COLORS} />
+        </>
+      )}
+      {(activeFilter === 'pl') && (
+        <ChartContainer title="Akcje Polskie" chartData={plChartData} colors={TICKER_COLORS} />
+      )}
+      {(activeFilter === 'foreign') && (
+        <ChartContainer title="Zagranica (bez Metali)" chartData={plVsRestData} colors={['#ec4899', '#6366f1']} />
+      )}
     </div>
   );
 }

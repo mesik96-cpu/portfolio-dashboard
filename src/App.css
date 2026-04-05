@@ -171,3 +171,15 @@ body {
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
+
+.content-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .content-layout {
+    flex-direction: column-reverse; /* Wykresy lądują pod tabelą na telefonach */
+  }
+}
