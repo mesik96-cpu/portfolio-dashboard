@@ -1,23 +1,22 @@
 import React, { useState } from 'react';
 import {
-  flexRender,
+  useReactTable,
   getCoreRowModel,
   getSortedRowModel,
   getGroupedRowModel,
   getExpandedRowModel,
-  useReactTable,
+  flexRender,
 } from '@tanstack/react-table';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ChevronDown, ChevronRight, ArrowUpDown } from 'lucide-react';
 import classNames from 'classnames';
 import './DataTable.css';
 
 export function DataTable({ data }) {
-  const [sorting, setSorting] = useState([{ id: 'marketValuePLN', desc: true }]);
+  const [sorting, setSorting] = useState([]);
   const [grouping, setGrouping] = useState([]);
 
-  // Formatters
-  const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN' }).format(val || 0);
-  const fmtPct = (val) => new Intl.NumberFormat('pl-PL', { style: 'percent', minimumFractionDigits: 1 }).format(val || 0);
+  const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0);
+  const fmtPct = (val) => new Intl.NumberFormat('pl-PL', { style: 'percent', minimumFractionDigits: 2 }).format(val || 0);
 
   const columns = [
     {
@@ -28,6 +27,11 @@ export function DataTable({ data }) {
     {
       header: 'Nazwa',
       accessorKey: 'name',
+    },
+    {
+      header: 'Wartość Rynkowa (PLN)',
+      accessorKey: 'marketValuePLN',
+      cell: info => <span className="text-medium">{fmtMoney(info.getValue())}</span>,
     },
     {
       header: 'Zysk (PLN)',
@@ -68,7 +72,7 @@ export function DataTable({ data }) {
       cell: info => {
         const val = info.getValue() || 0;
         return (
-          <span className={classNames("text-medium", val > 0 ? "positive-val" : val < 0 ? "negative-val" : "")}>
+          <span className="text-medium">
             {val > 0 ? "+" : ""}{new Intl.NumberFormat('pl-PL').format(val)}
           </span>
         );
@@ -80,7 +84,7 @@ export function DataTable({ data }) {
       cell: info => {
         const val = info.getValue() || 0;
         return (
-          <span className={classNames("text-medium", val > 0 ? "positive-val" : val < 0 ? "negative-val" : "")}>
+          <span className="text-medium">
             {val > 0 ? "+" : ""}{fmtPct(val)}
           </span>
         );
@@ -91,28 +95,26 @@ export function DataTable({ data }) {
       accessorKey: 'dividendsPLN',
       cell: info => {
         const val = info.getValue() || 0;
-        return val > 0 ? <span className="positive-val">{fmtMoney(val)}</span> : <span className="text-muted">—</span>;
+        return (
+          <span className="text-medium">
+            {val > 0 ? "+" : ""}{fmtMoney(val)}
+          </span>
+        );
       },
-      aggregationFn: 'sum',
-      aggregatedCell: ({ getValue }) => {
-        const val = getValue() || 0;
-        return <span className="text-bold positive-val">{val > 0 ? fmtMoney(val) : "—"}</span>;
-      }
     },
     {
-      id: 'zysk_z_dywidendami',
       header: 'Zysk % z dywidendami',
+      id: 'totalReturnPct',
       accessorFn: row => {
-         const gain = row.unrealizedGainPLN || 0;
-         const divs = row.dividendsPLN || 0;
-         const cost = row.costBasePLN || 0;
-         if (cost === 0) return 0;
-         return (gain + divs) / cost;
+        const cost = row.costBasePLN || 0;
+        if (cost === 0) return 0;
+        const totalProfit = (row.unrealizedGainPLN || 0) + (row.dividendsPLN || 0);
+        return totalProfit / cost;
       },
       cell: info => {
         const val = info.getValue() || 0;
         return (
-          <span className={classNames("text-bold", val > 0 ? "positive-val" : val < 0 ? "negative-val" : "")}>
+          <span className="text-bold">
             {val > 0 ? "+" : ""}{fmtPct(val)}
           </span>
         );
@@ -124,22 +126,17 @@ export function DataTable({ data }) {
       cell: info => <span className="text-muted">{fmtMoney(info.getValue())}</span>,
     },
     {
-      header: 'Wartość Rynkowa (PLN)',
-      accessorKey: 'marketValuePLN',
-      cell: info => <span className="text-medium">{fmtMoney(info.getValue())}</span>,
-    },
-    {
-      header: 'Ilość',
-      accessorKey: 'quantity',
-      cell: info => new Intl.NumberFormat('pl-PL').format(info.getValue() || 0),
+      header: 'Kategoria',
+      accessorKey: 'category',
     },
     {
       header: 'Waluta',
       accessorKey: 'currency',
     },
     {
-      header: 'Kategoria',
-      accessorKey: 'category',
+      header: 'Ilość',
+      accessorKey: 'quantity',
+      cell: info => new Intl.NumberFormat('pl-PL').format(info.getValue() || 0),
     }
   ];
 
@@ -166,42 +163,49 @@ export function DataTable({ data }) {
           <thead>
             {table.getHeaderGroups().map(headerGroup => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map(header => {
-                  return (
-                    <th 
-                      key={header.id} 
-                      colSpan={header.colSpan}
-                      className="cursor-pointer select-none"
-                      onClick={header.column.getToggleSortingHandler()}
-                    >
-                      <div className="header-cell">
-                        {header.isPlaceholder ? null : (
-                          <span>{flexRender(header.column.columnDef.header, header.getContext())}</span>
+                {headerGroup.headers.map(header => (
+                  <th key={header.id} colSpan={header.colSpan}>
+                    {header.isPlaceholder ? null : (
+                      <div
+                        className={classNames("header-cell", header.column.getCanSort() ? "cursor-pointer select-none" : "")}
+                        onClick={header.column.getToggleSortingHandler()}
+                      >
+                        {flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
                         )}
-                        <span className="sort-icon">
-                          {{
-                            asc: <ArrowUp size={14} />,
-                            desc: <ArrowDown size={14} />,
-                          }[header.column.getIsSorted()] ?? <ArrowUpDown size={14} className="sort-icon-idle" />}
-                        </span>
+                        {header.column.getCanSort() && (
+                          <span className={classNames("sort-icon", !header.column.getIsSorted() && "sort-icon-idle")}>
+                            {header.column.getIsSorted() ? (
+                              header.column.getIsSorted() === 'asc' ? <ArrowUpDown size={14} style={{transform: "rotate(180deg)"}} /> : <ArrowUpDown size={14} />
+                            ) : (
+                              <ArrowUpDown size={14} />
+                            )}
+                          </span>
+                        )}
                       </div>
-                    </th>
-                  )
-                })}
+                    )}
+                  </th>
+                ))}
               </tr>
             ))}
           </thead>
           <tbody>
             {table.getRowModel().rows.map(row => {
               return (
-                <tr key={row.id} className={classNames(row.getIsGrouped() ? "grouped-row" : "data-row")}>
+                <tr key={row.id} className={classNames("data-row", row.getIsGrouped() ? "grouped-row" : "")}>
                   {row.getVisibleCells().map(cell => {
                     return (
                       <td key={cell.id}>
                         {cell.getIsGrouped() ? (
-                          <div className="group-expander" onClick={row.getToggleExpandedHandler()}>
-                            <span>
-                              {row.getIsExpanded() ? '▼' : '▶'} {flexRender(cell.column.columnDef.cell, cell.getContext())} ({row.subRows.length})
+                          <div 
+                            className="group-expander"
+                            onClick={row.getToggleExpandedHandler()}
+                          >
+                            {row.getIsExpanded() ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                            <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                              ({row.subRows.length})
                             </span>
                           </div>
                         ) : cell.getIsAggregated() ? (
@@ -213,10 +217,10 @@ export function DataTable({ data }) {
                           flexRender(cell.column.columnDef.cell, cell.getContext())
                         )}
                       </td>
-                    )
+                    );
                   })}
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>

@@ -52,6 +52,7 @@ function App() {
   const filteredData = data.filter(item => {
     if (activeFilter === 'all') return true;
     if (activeFilter === 'pl') return item.category === 'AKCJE POLSKIE';
+    if (activeFilter === 'metals') return item.category === 'ETF METALE';
     if (activeFilter === 'foreign') return item.category !== 'AKCJE POLSKIE' && item.category !== 'ETF METALE';
     return true;
   });
@@ -61,7 +62,7 @@ function App() {
   const totalProfit = filteredData.reduce((sum, item) => sum + (item.unrealizedGainPLN || 0), 0)
   const profitPct = totalCost > 0 ? (totalValue - totalCost) / totalCost : 0
 
-  const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }).format(val || 0)
+  const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0)
   const fmtPct = (val) => new Intl.NumberFormat('pl-PL', { style: 'percent', minimumFractionDigits: 2 }).format(val || 0)
 
   if (!isAuthorized) {
@@ -152,6 +153,12 @@ function App() {
                 onClick={() => setActiveFilter('pl')}
               >
                 Akcje Polskie
+              </button>
+              <button 
+                className={`btn-pivot ${activeFilter === 'metals' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('metals')}
+              >
+                Metale
               </button>
               <button 
                 className={`btn-pivot ${activeFilter === 'foreign' ? 'active' : ''}`}
