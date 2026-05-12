@@ -80,10 +80,10 @@ export async function fetchPortfolioData() {
     }
     
     if (dataStarted) {
-      if (!col1) break; // End of positions table
+      if (!col1) continue; // Skip empty slot rows (no ticker)
       
       const quantity = parseFinancialNumber(r[4]);
-      if (quantity === 0) continue; // Ignore empty positions
+      if (quantity === 0) continue; // Skip positions with zero quantity
       
       const ticker = col1;
       
