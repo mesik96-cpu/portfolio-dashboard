@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { fetchPortfolioData } from './utils/csvParser'
+import { useState, useEffect, useCallback } from 'react'
+import { fetchPortfolioData, setProgressCallback } from './utils/csvParser'
 import { DataTable } from './components/DataTable'
 import { PortfolioChart } from './components/PortfolioChart'
 import { Briefcase, TrendingUp, AlertCircle, RefreshCw, Lock } from 'lucide-react'
@@ -11,6 +11,7 @@ function App() {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [loadProgress, setLoadProgress] = useState(null) // { attempt, maxAttempts, loadingCount, loadingTickers }
   
   // Custom Filters:
   const [activeFilter, setActiveFilter] = useState('all'); // 'all' | 'pl' | 'foreign'
@@ -25,19 +26,43 @@ function App() {
     }
   }
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
+      setLoadProgress(null)
+      
+      // Wire up progress callback
+      setProgressCallback((progress) => {
+        setLoadProgress({ ...progress })
+      })
+      
       const parsedData = await fetchPortfolioData()
-      setData(parsedData)
+      
+      // Only accept new data if it's better than what we have
+      // (fewer positions with loading values, or first load)
+      setData(prevData => {
+        if (prevData.length === 0) return parsedData;
+        
+        const prevLoadingCount = prevData.filter(p => p.hasLoadingValues).length;
+        const newLoadingCount = parsedData.filter(p => p.hasLoadingValues).length;
+        
+        // Accept if new data has fewer or equal loading issues
+        if (newLoadingCount <= prevLoadingCount) return parsedData;
+        
+        // Keep old data if new data is worse
+        console.log(`[App] Keeping previous data (${prevLoadingCount} loading) over new data (${newLoadingCount} loading)`);
+        return prevData;
+      })
     } catch (err) {
       console.error(err)
       setError(err.message)
     } finally {
       setLoading(false)
+      setLoadProgress(null)
+      setProgressCallback(null)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
@@ -46,7 +71,7 @@ function App() {
     }, 5 * 60 * 1000)
     
     return () => clearInterval(interval)
-  }, [])
+  }, [loadData])
 
   // Apply filtering
   const filteredData = data.filter(item => {
@@ -61,6 +86,9 @@ function App() {
   const totalCost = filteredData.reduce((sum, item) => sum + (item.costBasePLN || 0), 0)
   const totalProfit = filteredData.reduce((sum, item) => sum + (item.unrealizedGainPLN || 0), 0)
   const profitPct = totalCost > 0 ? (totalValue - totalCost) / totalCost : 0
+
+  const loadingPositions = data.filter(p => p.hasLoadingValues)
+  const hasLoadingWarning = loadingPositions.length > 0
 
   const fmtMoney = (val) => new Intl.NumberFormat('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val || 0)
   const fmtPct = (val) => new Intl.NumberFormat('pl-PL', { style: 'percent', minimumFractionDigits: 2 }).format(val || 0)
@@ -99,7 +127,7 @@ function App() {
         </div>
         <button className="btn-refresh" onClick={loadData} disabled={loading}>
           <RefreshCw className={loading ? "spin" : ""} size={16} />
-          <span>Odśwież</span>
+          <span>{loading ? 'Ładowanie...' : 'Odśwież'}</span>
         </button>
       </header>
 
@@ -111,6 +139,21 @@ function App() {
           </div>
         )}
 
+        {/* Loading progress indicator */}
+        {loading && loadProgress && (
+          <div className="loading-progress-bar">
+            <div className="progress-text">
+              <RefreshCw className="spin" size={14} />
+              <span>
+                Próba {loadProgress.attempt}/{loadProgress.maxAttempts}
+                {loadProgress.loadingCount > 0 
+                  ? ` — czekam na dane z Google Finance (${loadProgress.loadingCount} komórek)...`
+                  : ' — dane kompletne ✓'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {loading && data.length === 0 ? (
           <div className="loading-spinner">
             <div className="spinner"></div>
@@ -118,6 +161,17 @@ function App() {
           </div>
         ) : (
           <>
+            {/* Warning about incomplete data */}
+            {hasLoadingWarning && !loading && (
+              <div className="warning-card">
+                <AlertCircle size={16} />
+                <span>
+                  Google Finance nie załadował danych dla: {loadingPositions.map(p => p.ticker).join(', ')}. 
+                  Wartości tych pozycji mogą być niepełne.
+                </span>
+              </div>
+            )}
+
             {/* KPI Section */}
             <div className="kpi-grid fade-in">
               <div className="kpi-card">

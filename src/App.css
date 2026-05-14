@@ -140,7 +140,7 @@ body {
 .kpi-trend.positive { color: var(--positive); }
 .kpi-trend.negative { color: var(--negative); }
 
-/* Error & Loading */
+/* Error, Warning & Loading */
 .error-card {
   display: flex;
   align-items: center;
@@ -151,6 +151,37 @@ body {
   padding: 16px;
   border-radius: 8px;
   margin-bottom: 2rem;
+}
+
+.warning-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  color: #fbbf24;
+  padding: 10px 16px;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.loading-progress-bar {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 1rem;
+}
+
+.progress-text {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #a5b4fc;
+  font-size: 0.82rem;
+  font-weight: 500;
 }
 
 .loading-spinner {
