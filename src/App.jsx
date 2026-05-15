@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { fetchPortfolioData, setProgressCallback } from './utils/csvParser'
+import { fetchPortfolioData, fetchHistoryData, setProgressCallback } from './utils/csvParser'
 import { DataTable } from './components/DataTable'
 import { PortfolioChart } from './components/PortfolioChart'
+import { HistoryChart } from './components/HistoryChart'
 import { Briefcase, TrendingUp, AlertCircle, RefreshCw, Lock } from 'lucide-react'
 import './App.css'
 
@@ -9,6 +10,7 @@ function App() {
   const [isAuthorized, setIsAuthorized] = useState(false)
   const [pinInput, setPinInput] = useState('')
   const [data, setData] = useState([])
+  const [historyData, setHistoryData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [loadProgress, setLoadProgress] = useState(null) // { attempt, maxAttempts, loadingCount, loadingTickers }
@@ -37,7 +39,12 @@ function App() {
         setLoadProgress({ ...progress })
       })
       
-      const parsedData = await fetchPortfolioData()
+      const [parsedData, parsedHistory] = await Promise.all([
+        fetchPortfolioData(),
+        fetchHistoryData()
+      ])
+      
+      setHistoryData(parsedHistory)
       
       // Only accept new data if it's better than what we have
       // (fewer positions with loading values, or first load)
@@ -193,6 +200,11 @@ function App() {
                 </div>
               </div>
             </div>
+
+            {/* History Chart Section */}
+            {!loading && historyData.length > 0 && (
+              <HistoryChart data={historyData} />
+            )}
 
             {/* Filter Controls (replaces standard Pivot controls) */}
             <div className="pivot-controls" style={{ marginBottom: '1.5rem', justifyContent: 'center' }}>

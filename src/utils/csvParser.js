@@ -2,6 +2,8 @@ import Papa from 'papaparse';
 
 const MAIN_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRBdBUzDghTVlAb1rlhElvsxn4lezcXqdQI1zJ73iVGubnmwNpxtu1pZt0baamVRJGfw4FAYOK49BYn/pub?gid=1111357939&single=true&output=csv";
 const SETUP_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRBdBUzDghTVlAb1rlhElvsxn4lezcXqdQI1zJ73iVGubnmwNpxtu1pZt0baamVRJGfw4FAYOK49BYn/pub?gid=559054297&single=true&output=csv";
+// TODO: Replace with actual history URL once user sets up Apps Script
+const HISTORY_CSV_URL = "/history_mock.csv";
 
 // Retry config
 const MAX_RETRIES = 5;
@@ -213,3 +215,36 @@ export async function fetchPortfolioData() {
   
   return parsedData;
 }
+
+export async function fetchHistoryData() {
+  try {
+    const rawData = await fetchAndParseCSV(HISTORY_CSV_URL);
+    // CSV headers: Data, Zainwestowano, Wartosc Portfela, SP500, AllWorld
+    
+    // First row is headers, papaparse handles it, but since we didn't pass `header: true`
+    // to PapaParse, rawData is an array of arrays.
+    // PapaParse might return headers as the first element if not skipped.
+    // Let's filter out rows that don't start with a date.
+    
+    const parsedHistory = [];
+    for (const r of rawData) {
+      const dateStr = (r[0] || '').trim();
+      // Simple date regex YYYY-MM-DD or DD.MM.YYYY
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) && !/^\d{2}\.\d{2}\.\d{4}$/.test(dateStr)) continue;
+      
+      parsedHistory.push({
+        date: dateStr,
+        invested: parseFloat((r[1] || '').replace(/,/g, '')) || 0,
+        portfolioValue: parseFloat((r[2] || '').replace(/,/g, '')) || 0,
+        sp500: parseFloat((r[3] || '').replace(/,/g, '')) || 0,
+        allWorld: parseFloat((r[4] || '').replace(/,/g, '')) || 0,
+      });
+    }
+    
+    return parsedHistory;
+  } catch (err) {
+    console.error("Błąd ładowania historii:", err);
+    return []; // Return empty history if fails
+  }
+}
+
